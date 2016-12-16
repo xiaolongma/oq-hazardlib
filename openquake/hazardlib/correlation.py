@@ -80,19 +80,23 @@ class BaseCorrelationModel(with_metaclass(abc.ABCMeta)):
         # we need to do that multiplication once per realization
         # with the same matrix and different vectors.
         try:
-            corma = self.cache[imt]
+            cm = self.cache[imt]
         except KeyError:
-            corma = self.get_lower_triangle_correlation_matrix(
-                sites.complete, imt)
-            self.cache[imt] = corma
-        if len(sites.complete) == len(sites):
-            return numpy.dot(corma, residuals)
-        # it is important to allocate little memory, this is why I am
-        # accumulating below; if S is the length of the complete sitecollection
-        # the correlation matrix has shape (S, S) and the residuals (N, s),
-        # where s is the number of samples
-        return numpy.sum(corma[sites.sids, sid] * res
-                         for sid, res in zip(sites.sids, residuals))
+            cm = self._get_correlation_matrix(sites.complete, imt)
+            self.cache[imt] = cm
+        triang = numpy.linalg.cholesky(project(cm, sites.sids))
+        return numpy.dot(triang, residuals)
+
+
+def project(matrix, indices):
+    """
+    Project a matrix on the given indices.
+    """
+    n = len(indices)
+    mat = numpy.zeros((n, n))
+    for i, idx in enumerate(indices):
+        mat[i] = matrix[idx, indices]
+    return mat
 
 
 class JB2009CorrelationModel(BaseCorrelationModel):
