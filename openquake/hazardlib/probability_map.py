@@ -125,6 +125,22 @@ class ProbabilityMap(dict):
         return dic
 
     @classmethod
+    def from_array(cls, array, sids):
+        """
+        :param array: array of shape (N, L, I)
+        :param sids: array of N site IDs
+        """
+        n_sites = len(sids)
+        n = len(array)
+        if n_sites != n:
+            raise ValueError('Passed %d site IDs, but the array has length %d'
+                             % (n_sites, n))
+        self = cls(*array.shape[1:])
+        for sid, poes in zip(sids, array):
+            self[sid] = ProbabilityCurve(poes)
+        return self
+
+    @classmethod
     def read(cls, hdf5item, sids):
         """
         :param hdf5item: a HDF5 dataset describing a ProbabilityMap
