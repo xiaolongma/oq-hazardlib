@@ -114,7 +114,7 @@ def compute_stats(array, quantiles, weights):
 
 
 # like compute_stats, but on a matrix of shape (N, R)
-def compute_stats2(arrayNR, quantiles, weights):
+def compute_stats2(arrayNR, quantiles, weights=None):
     """
     :param arrayNR:
         an array of (N, R) elements
@@ -126,6 +126,9 @@ def compute_stats2(arrayNR, quantiles, weights):
         an array of (N, Q + 1) elements
     """
     newshape = list(arrayNR.shape)
+    R = newshape[1]
+    if weights is None:
+        weights = numpy.ones(R) / R
     newshape[1] = len(quantiles) + 1  # number of statistical outputs
     newarray = numpy.zeros(newshape, arrayNR.dtype)
     data = [arrayNR[:, i] for i in range(len(weights))]
@@ -133,6 +136,26 @@ def compute_stats2(arrayNR, quantiles, weights):
     for i, q in enumerate(quantiles, 1):
         newarray[:, i] = apply_stat(quantile_curve, data, q, weights)
     return newarray
+
+
+# one can use a custom class with the same interface,
+# i.e. callable with an arrya (N, L, R) and attribute .kinds
+class MQStats(object):
+    """
+    Compute mean and quantiles on an array of shape N, L, R.
+
+    :attr kinds: the kind of statistics computed
+    """
+    def __init__(self, quantiles, weights=None):
+        self.quantiles = quantiles
+        self.weights = weights
+        self.kinds = ['mean'] + ['quantile-%s' % q for q in quantiles]
+
+    def __call__(self, arrayNLR):
+        # compute_stats2 expects a shape (N, R, L)
+        stats = compute_stats2(arrayNLR.transpose(0, 2, 1),
+                               self.quantiles, self.weights)
+        return stats.transpose(0, 2, 1)  # shape (N, L, Q + 1)
 
 
 def apply_stat(f, arraylist, *extra, **kw):
