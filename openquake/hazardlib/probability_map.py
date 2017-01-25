@@ -124,6 +124,25 @@ class ProbabilityMap(dict):
             dic.setdefault(sid, initvalue)
         return dic
 
+    @classmethod
+    def read(cls, hdf5item, sids):
+        """
+        :param hdf5item: a HDF5 dataset describing a ProbabilityMap
+        :param sids: the subset of site IDs of interest
+        :returns: a ProbabilityMap
+        """
+        sid2idx = {sid: i for i, sid in enumerate(hdf5item.attrs['sids'])}
+        _N, L, I = hdf5item.shape
+        self = cls.build(L, I, sids)
+        for sid in sids:
+            try:
+                idx = sid2idx[sid]
+            except KeyError:
+                continue
+            else:
+                self[sid] = ProbabilityCurve(hdf5item[idx])
+        return self
+
     def __init__(self, shape_y, shape_z):
         self.shape_y = shape_y
         self.shape_z = shape_z
@@ -181,18 +200,6 @@ class ProbabilityMap(dict):
             for sid in self:
                 curves_by_imt[sid] = self[sid].array[imtls.slicedic[imt], idx]
         return curves
-
-    def filter(self, sids):
-        """
-        Extracs a submap of self for the given sids.
-        """
-        dic = self.__class__(self.shape_y, self.shape_z)
-        for sid in sids:
-            try:
-                dic[sid] = self[sid]
-            except KeyError:
-                pass
-        return dic
 
     def extract(self, inner_idx):
         """
