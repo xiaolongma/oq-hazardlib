@@ -39,8 +39,7 @@ def quantile_curve(curves, quantile, weights=None):
     standard quantile when using the sampling approach.
 
     :param curves:
-        2D array-like of curve PoEs. Each row represents the PoEs for a single
-        curve
+        list of R arrays of curve PoEs of shape (N, L) each
     :param quantile:
         Quantile value to calculate. Should be in the range [0.0, 1.0].
     :param weights:
@@ -54,14 +53,14 @@ def quantile_curve(curves, quantile, weights=None):
         # numpy.array(mstats.mquantiles(curves, prob=quantile, axis=0))[0]
         # more or less copied from the scipy mquantiles function, just special
         # cased for what we need (and a lot faster)
-        arr = numpy.array(curves).reshape(len(curves), -1)
+        arr = numpy.array(curves)
         p = numpy.array(quantile)
         m = 0.4 + p * 0.2
         n = len(arr)
         aleph = n * p + m
         k = numpy.floor(aleph.clip(1, n - 1)).astype(int)
         gamma = (aleph - k).clip(0, 1)
-        data = numpy.sort(arr, axis=0).transpose()
+        data = numpy.sort(arr, axis=0).transpose(1, 0, 2)
         qcurve = (1.0 - gamma) * data[:, k - 1] + gamma * data[:, k]
         return qcurve
 
@@ -127,11 +126,9 @@ def compute_stats2(arrayNR, quantiles, weights=None):
     """
     newshape = list(arrayNR.shape)
     R = newshape[1]
-    if weights is None:
-        weights = numpy.ones(R) / R
     newshape[1] = len(quantiles) + 1  # number of statistical outputs
     newarray = numpy.zeros(newshape, arrayNR.dtype)
-    data = [arrayNR[:, i] for i in range(len(weights))]
+    data = [arrayNR[:, i] for i in range(R)]  # the transpose does not work
     newarray[:, 0] = apply_stat(mean_curve, data, weights)
     for i, q in enumerate(quantiles, 1):
         newarray[:, i] = apply_stat(quantile_curve, data, q, weights)
